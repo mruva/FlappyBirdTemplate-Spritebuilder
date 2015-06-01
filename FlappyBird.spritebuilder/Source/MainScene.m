@@ -222,7 +222,7 @@
         
         if (bushScreenPosition.x <= (-1 * bush.contentSize.width))
         {
-            for CGPointObject *child in _parallaxBackground._parallaxArray)
+            for (CGPointObject *child in _parallaxBackground.parallaxArray)
             {
                 if (child.child == bush)
                 {
