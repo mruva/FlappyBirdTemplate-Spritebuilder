@@ -21,7 +21,7 @@
 @property (nonatomic, readwrite, unsafe_unretained) CCNode *child;
 
 +(id) pointWithCGPoint:(CGPoint)point offset:(CGPoint)offset;
--(id) initWithCGPOint:(CGPOint)point offset:(CGPoint)offset;
+-(id) initWithCGPoint:(CGPoint)point offset:(CGPoint)offset;
 @end
 
 @implementation MainScene {
