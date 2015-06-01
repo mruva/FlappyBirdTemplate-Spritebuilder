@@ -9,10 +9,32 @@
 #import "MainScene.h"
 #import "Obstacle.h"
 
+@interface CGPointObject : NSObject
+{
+    CGPoint _ratio;
+    CGPoint _offset;
+    CCNode *__unsafe_unretained _child; //weak ref
+}
+
+@property (nonatomic, readwrite) CGPoint ratio;
+@property (nonatomic, readwrite) CGPoint offset;
+@property (nonatomic, readwrite, unsafe_unretained) CCNode *child;
+
++(id) pointWithCGPoint:(CGPoint)point offset:(CGPoint)offset;
+-(id) initWithCGPOint:(CGPOint)point offset:(CGPoint)offset;
+@end
+
 @implementation MainScene {
     CCNode *_ground1;
     CCNode *_ground2;
     NSArray *_grounds;
+    
+    //variabili per parallax
+    CGPoint _cloudParallaxRatio;
+    CGPoint _bushParallaxRatio;
+    
+    CCNode *_parallaxContainer;
+    CCParallaxNode *_parallaxBackground;
     
     //sfondo scorrevole
     CCNode *_cloud1;
@@ -44,6 +66,28 @@
     
     _clouds = @[_cloud1, _cloud2];
     _bushes = @[_bush1, _bush2];
+    
+    //preparo il parallax e ne carico le variabili
+    _parallaxBackground = [CCParallaxNode node];
+    [_parallaxContainer addChild:_parallaxBackground];
+    
+    //la velocita dei cespugli, esendo piu vicini, deve essere maggiore rispetto alle nuvole
+    _bushParallaxRatio = ccp(0.9, 1);
+    _cloudParallaxRatio = ccp(0.5, 1);
+    
+    for (CCNode *bush in _bushes)
+    {
+        CGPoint offset = bush.position;
+        [self removeChild:bush];
+        [_parallaxBackground addChild:bush z:0 parallaxRatio:_bushParallaxRatio positionOffset:offset];
+    }
+    
+    for (CCNode *cloud in _clouds)
+    {
+        CGPoint offset = cloud.position;
+        [self removeChild:cloud];
+        [_parallaxBackground addChild:cloud z:0 parallaxRatio:_cloudParallaxRatio positionOffset:offset];
+    }
     
     for (CCNode *ground in _grounds) {
         // set collision txpe
@@ -156,30 +200,72 @@
         }
     }
     
+    _parallaxBackground.position = ccp(_parallaxBackground.position.x - (character.physicsBody.velocity.x * delta), _parallaxBackground.position.y);
+    
     //muovi e loopa i cespugli
     for (CCNode *bush in _bushes)
-        //muovi il cespublio
     {
-        bush.position = ccp(bush.position.x - (character.physicsBody.velocity.x * delta),bush.position.y);
-        //se l-angolo sinistro e' completamente fuori dallo schemo , fai apparire il destro
-        if (bush.position.x <= (-1 * bush.contentSize.width))
+        // get the world position of the bush
+        CGPoint bushWorldPosition = [_parallaxBackground convertToWorldSpace:bush.position];
+        
+        //otteniamo la posizione del cespuglio sullo schermo
+        CGPoint bushScreenPosition = [self convertToNodeSpace:bushWorldPosition];
+        
+        //vecchio codice
+//        bush.position = ccp(bush.position.x - (character.physicsBody.velocity.x * delta),bush.position.y);
+//        //se l-angolo sinistro e' completamente fuori dallo schemo , fai apparire il destro
+//        if (bush.position.x <= (-1 * bush.contentSize.width))
+//        {
+//            bush.position = ccp(bush.position.x + 2 * bush.contentSize.width, bush.position.y);
+//        }
+        
+        
+        if (bushScreenPosition.x <= (-1 * bush.contentSize.width))
         {
-            bush.position = ccp(bush.position.x + 2 * bush.contentSize.width, bush.position.y);
+            for CGPointObject *child in _parallaxBackground._parallaxArray)
+            {
+                if (child.child == bush)
+                {
+                    child.offset = ccp(child.offset.x + 2*bush.contentSize.width, child.offset.y);
+                }
+            }
+            
         }
+        
     }
     
     //muovi e loopa le nuvole
     
     for (CCNode *cloud in _clouds)
     {
-        //muovi la nuvola
-        cloud.position = ccp(cloud.position.x - (character.physicsBody.velocity.x * delta), cloud.position.y);
+        //posizione della nuvola nel mondo
+        CGPoint cloudWorldPosition = [_parallaxBackground convertToWorldSpace:cloud.position];
         
-        //se l-angolo sinistro e' completamente fuori schermo, fai apparire il destro
-        if (cloud.position.x <= (-1 * cloud.contentSize.width))
+        //posizione delle nuvole sullo schermo
+        CGPoint cloudScreenPosition = [self convertToWorldSpace:cloudWorldPosition];
+        
+        //se l-angolo sinistro e' fuori schermo muovilo a destra
+        
+        if (cloudScreenPosition.x <= (-1 * cloud.contentSize.width))
         {
-            cloud.position = ccp(cloud.position.x + 2 * cloud.contentSize.width, cloud.position.y);
+            for (CGPointObject *child in _parallaxBackground.parallaxArray)
+            {
+                if (child.child == cloud)
+                {
+                    child.offset = ccp(child.offset.x + 2*cloud.contentSize.width, child.offset.y);
+                }
+            }
         }
+        
+        
+//      //muovi la nuvola
+//        cloud.position = ccp(cloud.position.x - (character.physicsBody.velocity.x * delta), cloud.position.y);
+//        
+//        //se l-angolo sinistro e' completamente fuori schermo, fai apparire il destro
+//        if (cloud.position.x <= (-1 * cloud.contentSize.width))
+//        {
+//            cloud.position = ccp(cloud.position.x + 2 * cloud.contentSize.width, cloud.position.y);
+//        }
     }
     
     NSMutableArray *offScreenObstacles = nil;
